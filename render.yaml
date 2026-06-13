@@ -1,0 +1,13 @@
+# Render Blueprint — deploy with one click from the repo.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: certificate-studio
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: "10000"

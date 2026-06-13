@@ -1,0 +1,8 @@
+.git
+.gitignore
+.DS_Store
+uploads/*
+output/*
+fonts/*.ttf
+*.log
+README.md

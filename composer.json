@@ -1,0 +1,13 @@
+{
+  "name": "certificate/studio",
+  "description": "Design PDF certificates from a background image with Google Fonts and dynamic fields, then email them to participants via PHPMailer.",
+  "type": "project",
+  "require": {
+    "php": ">=8.0",
+    "ext-gd": "*",
+    "ext-curl": "*",
+    "setasign/fpdf": "^1.8",
+    "phpmailer/phpmailer": "^6.9"
+  },
+  "_note": "FPDF and PHPMailer are already bundled in /libs, so the app runs WITHOUT composer. This file is provided only if you prefer to manage them via composer instead."
+}

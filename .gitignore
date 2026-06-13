@@ -1,0 +1,10 @@
+# Runtime artifacts (kept as empty dirs via their own .gitignore)
+/uploads/*
+/output/*
+/fonts/*.ttf
+!*/.gitignore
+
+# Local / editor
+.DS_Store
+/vendor/
+*.log
