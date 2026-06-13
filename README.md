@@ -73,12 +73,19 @@ On **Step 3** you choose how mail goes out:
 
 | Method | Port used | Works on… | Notes |
 |--------|-----------|-----------|-------|
-| **SMTP** (Gmail/Outlook/Yahoo + app password) | 587 / 465 | **Local** machines | Most hosts (incl. **Render**, Heroku, etc.) **block outbound SMTP**, so this fails when deployed with *"Could not connect to SMTP host."* |
-| **SendGrid API** | 443 (HTTPS) | **Local *and* Render** | Recommended for the deployed site. Needs a free SendGrid API key + a verified "From" sender. |
+| **SMTP** — Gmail/Outlook/Yahoo + app password | 587 / 465 | **Local only** | Render/Heroku **block ports 587 & 465**, so direct provider SMTP fails when deployed (*"Could not connect to SMTP host."*). |
+| **SMTP** — Brevo / SendGrid **relay** | **2525** | **Local *and* Render** | Render does **not** block port 2525. Pick the "Brevo/SendGrid SMTP relay" preset to keep using SMTP on the deployed site. |
+| **SendGrid API** | 443 (HTTPS) | **Local *and* Render** | Needs a free SendGrid API key + a verified "From" sender. |
 
-> ⚠️ **Render blocks SMTP ports.** If you deploy and try to send via Gmail SMTP,
-> every recipient will fail to connect. Use **SendGrid** for the live site (or
-> run the app locally for SMTP).
+> ⚠️ **Render blocks the usual SMTP ports (25/465/587)** — Gmail SMTP will fail
+> on the deployed site. Two ways to send from Render:
+> 1. **SMTP relay on port 2525** — choose the *Brevo* or *SendGrid SMTP relay*
+>    provider preset (host + port 2525 are filled in for you). Port 2525 is the
+>    standard alternative SMTP port and is **not** blocked.
+> 2. **SendGrid API** (HTTPS) — see below.
+>
+> For Gmail specifically there is no workaround on Render: Gmail only listens on
+> 465/587, both blocked. Use a relay/API, or run locally.
 
 ### Using SendGrid
 1. Sign up at <https://signup.sendgrid.com> (free tier ≈ 100 emails/day).
