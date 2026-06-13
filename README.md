@@ -33,10 +33,14 @@ php -m | grep -E 'gd|curl'
 From this folder:
 
 ```bash
-php -S localhost:8000
+php -S localhost:8000 -c php.ini
 ```
 
 Then open **http://localhost:8000** in your browser.
+
+> The bundled `php.ini` raises the upload limits (default PHP only allows 2 MB).
+> Large background images are also automatically downscaled in the browser
+> before upload, so uploads stay small either way.
 
 > The PHP built-in server is single-threaded. For sending to many recipients it's fine, but a real deployment behind Apache/Nginx + PHP-FPM is recommended.
 

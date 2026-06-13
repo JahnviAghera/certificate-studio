@@ -4,6 +4,10 @@
 /fonts/*.ttf
 !*/.gitignore
 
+# Secrets — never commit
+.env
+.env.*
+
 # Local / editor
 .DS_Store
 /vendor/

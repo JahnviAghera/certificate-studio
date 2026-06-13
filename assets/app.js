@@ -1,9 +1,10 @@
 'use strict';
 
 const state = {
-  bg: null,                 // {file, url, width, height}
-  fields: [],               // field objects
-  selected: null,           // field id
+  bg: null,        // {file, url, width, height}
+  fields: [],      // field objects
+  selected: null,  // field id
+  step: 1,
 };
 let fieldSeq = 1;
 const loadedFonts = new Set();
@@ -11,24 +12,100 @@ const loadedFonts = new Set();
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
 
-/* ---------- Google Fonts (live preview) ---------- */
-function fontLinkId(family, weight) {
-  return 'gf-' + family.replace(/\W+/g, '_') + '-' + weight;
+/* ====================================================================
+   STEP NAVIGATION
+==================================================================== */
+function goStep(n) {
+  if (n === 2 && !state.bg) { alert('Upload a background image first.'); return; }
+  if (n === 3) {
+    const { rows, headers } = parseCsv($('csv').value);
+    if (!rows.length || !headers.includes('email')) {
+      alert('Add at least one recipient with an “email” column first.'); goStep(2); return;
+    }
+  }
+  state.step = n;
+  document.querySelectorAll('.step').forEach((s) => {
+    s.classList.toggle('active', Number(s.dataset.step) === n);
+  });
+  document.querySelectorAll('.step-tab').forEach((t) => {
+    const tn = Number(t.dataset.go);
+    t.classList.toggle('active', tn === n);
+    t.classList.toggle('done', tn < n);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/* ====================================================================
+   IMAGE UPLOAD  (with client-side downscale so size never blocks us)
+==================================================================== */
+function fileToImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+    img.src = url;
+  });
+}
+
+async function optimise(file, maxSide = 2600) {
+  const img = await fileToImage(file);
+  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  // Keep PNG for formats that may carry transparency; JPEG otherwise (smaller).
+  const keepPng = /image\/(png|webp|gif)/i.test(file.type);
+  const type = keepPng ? 'image/png' : 'image/jpeg';
+  const blob = await new Promise((r) => canvas.toBlob(r, type, 0.92));
+  return { blob, ext: keepPng ? 'png' : 'jpg' };
+}
+
+async function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
+  const dz = $('dropzone');
+  dz.classList.add('busy');
+  try {
+    const { blob, ext } = await optimise(file);
+    const fd = new FormData();
+    fd.append('background', blob, 'background.' + ext);
+    const res = await fetch('api/upload.php', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!data.ok) { alert('Upload failed: ' + data.error); return; }
+    state.bg = data;
+    $('bgDims').textContent = data.width + ' × ' + data.height + ' px';
+    $('dropzone').hidden = true;
+    $('designer').hidden = false;
+    $('toStep2').disabled = false;
+    renderStage();
+    if (!state.fields.length) addField();
+  } catch (e) {
+    alert(e.message || 'Upload error.');
+  } finally {
+    dz.classList.remove('busy');
+  }
+}
+
+/* ====================================================================
+   GOOGLE FONTS (live preview)
+==================================================================== */
 function ensureFont(family, weight) {
   const key = family + '@' + weight;
   if (loadedFonts.has(key)) return;
   loadedFonts.add(key);
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.id = fontLinkId(family, weight);
   link.href = 'https://fonts.googleapis.com/css2?family=' +
     encodeURIComponent(family).replace(/%20/g, '+') +
     ':ital,wght@0,' + weight + ';1,' + weight + '&display=swap';
   document.head.appendChild(link);
 }
 
-/* ---------- Stage rendering ---------- */
+/* ====================================================================
+   STAGE + FIELDS
+==================================================================== */
 function scaleFactor() {
   const img = stage.querySelector('img.bg');
   if (!img || !state.bg) return 1;
@@ -37,10 +114,7 @@ function scaleFactor() {
 
 function renderStage() {
   stage.innerHTML = '';
-  if (!state.bg) {
-    stage.innerHTML = '<p class="placeholder">Upload a certificate background image to begin.</p>';
-    return;
-  }
+  if (!state.bg) return;
   const img = document.createElement('img');
   img.className = 'bg';
   img.src = state.bg.url;
@@ -64,7 +138,7 @@ function renderFields() {
     ensureFont(f.font, f.weight);
     const el = stage.querySelector('.field[data-id="' + f.id + '"]');
     if (!el) return;
-    el.textContent = f.text || ' ';
+    el.textContent = f.text || ' ';
     el.className = 'field ' + f.align + (f.id === state.selected ? ' selected' : '');
     el.style.left = (f.x * 100) + '%';
     el.style.top = (f.y * 100) + '%';
@@ -77,7 +151,6 @@ function renderFields() {
 }
 window.addEventListener('resize', renderFields);
 
-/* ---------- Dragging ---------- */
 function startDrag(e, f) {
   e.preventDefault();
   selectField(f.id);
@@ -95,14 +168,14 @@ function startDrag(e, f) {
   window.addEventListener('pointerup', up);
 }
 
-/* ---------- Field CRUD + editor ---------- */
 function addField() {
+  // Stagger new fields vertically so they don't stack on top of each other.
+  const y = Math.min(0.85, 0.4 + state.fields.length * 0.12);
   const f = {
     id: 'f' + (fieldSeq++),
-    text: '{{name}}',
-    font: $('fFont').value || 'Montserrat',
+    text: '{{name}}', font: $('fFont').value || 'Montserrat',
     weight: 700, italic: false, size: 48, color: '#1a1a2e',
-    align: 'center', x: 0.5, y: 0.5,
+    align: 'center', x: 0.5, y,
   };
   state.fields.push(f);
   addFieldEl(f);
@@ -117,7 +190,7 @@ function deleteField() {
   const el = stage.querySelector('.field[data-id="' + state.selected + '"]');
   if (el) el.remove();
   state.selected = null;
-  $('fieldEditor').hidden = true;
+  $('fieldEditorCard').hidden = true;
   renderFieldList();
 }
 
@@ -125,7 +198,7 @@ function selectField(id) {
   state.selected = id;
   const f = state.fields.find((x) => x.id === id);
   if (!f) return;
-  $('fieldEditor').hidden = false;
+  $('fieldEditorCard').hidden = false;
   $('fText').value = f.text;
   $('fFont').value = f.font;
   $('fWeight').value = f.weight;
@@ -146,11 +219,9 @@ function bindEditor() {
     $(elId).addEventListener('input', () => {
       const f = state.fields.find((x) => x.id === state.selected);
       if (!f) return;
-      let v;
-      if (elId === 'fItalic') v = $(elId).checked;
-      else if (elId === 'fWeight' || elId === 'fSize') v = Number($(elId).value);
-      else v = $(elId).value;
-      f[prop] = v;
+      if (elId === 'fItalic') f[prop] = $(elId).checked;
+      else if (elId === 'fWeight' || elId === 'fSize') f[prop] = Number($(elId).value);
+      else f[prop] = $(elId).value;
       renderFields();
       renderFieldList();
     });
@@ -162,36 +233,33 @@ function renderFieldList() {
   const list = $('fieldList');
   list.innerHTML = '';
   if (!state.fields.length) {
-    list.innerHTML = '<div class="dim">No fields yet. Click “Add field”.</div>';
+    list.innerHTML = '<div class="dim small">No fields yet. Click “+ Add field”.</div>';
     return;
   }
   state.fields.forEach((f) => {
     const row = document.createElement('div');
     row.className = 'field-row' + (f.id === state.selected ? ' active' : '');
     row.innerHTML = '<span class="ft">' + escapeHtml(f.text || '(empty)') +
-      '</span><span class="dim">' + escapeHtml(f.font) + '</span>';
+      '</span><span class="dim small">' + escapeHtml(f.font) + '</span>';
     row.addEventListener('click', () => selectField(f.id));
     list.appendChild(row);
   });
 }
 
-/* ---------- Upload ---------- */
-async function uploadBg(file) {
-  const fd = new FormData();
-  fd.append('background', file);
-  const res = await fetch('api/upload.php', { method: 'POST', body: fd });
-  const data = await res.json();
-  if (!data.ok) { alert('Upload failed: ' + data.error); return; }
-  state.bg = data;
-  $('bgDims').textContent = data.width + ' × ' + data.height + ' px';
-  $('addFieldBtn').disabled = false;
-  $('serverPreviewBtn').disabled = false;
-  $('sendBtn').disabled = false;
-  renderStage();
-  if (!state.fields.length) addField();
+/* ====================================================================
+   CSV
+==================================================================== */
+function splitCsvLine(line) {
+  const out = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+    else if (c === ',' && !q) { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
 }
-
-/* ---------- CSV parsing ---------- */
 function parseCsv(text) {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim() !== '');
   if (lines.length < 2) return { rows: [], headers: [] };
@@ -204,34 +272,34 @@ function parseCsv(text) {
   });
   return { rows, headers };
 }
-function splitCsvLine(line) {
-  const out = []; let cur = ''; let q = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
-    else if (c === ',' && !q) { out.push(cur); cur = ''; }
-    else cur += c;
-  }
-  out.push(cur);
-  return out;
-}
-function refreshCsvStatus() {
+function refreshCsv() {
   const { rows, headers } = parseCsv($('csv').value);
   const hasEmail = headers.includes('email');
   $('csvStatus').innerHTML = rows.length
     ? rows.length + ' recipient(s). Columns: ' + headers.join(', ') +
       (hasEmail ? '' : ' — <span style="color:#ff5c7c">missing “email” column!</span>')
-    : 'No valid rows yet.';
+    : 'No valid rows yet — add a header line plus at least one recipient.';
+
+  // Preview table (first 6 rows).
+  const tbl = $('csvPreview');
+  if (!rows.length) { tbl.innerHTML = ''; return; }
+  let html = '<tr>' + headers.map((h) => '<th>' + escapeHtml(h) + '</th>').join('') + '</tr>';
+  rows.slice(0, 6).forEach((r) => {
+    html += '<tr>' + headers.map((h) => '<td>' + escapeHtml(r[h] || '') + '</td>').join('') + '</tr>';
+  });
+  if (rows.length > 6) html += '<tr><td colspan="' + headers.length + '" class="dim">…and ' + (rows.length - 6) + ' more</td></tr>';
+  tbl.innerHTML = html;
 }
 
-/* ---------- Server render check ---------- */
+/* ====================================================================
+   SERVER RENDER CHECK
+==================================================================== */
 async function serverPreview() {
   if (!state.bg) return;
   const { rows } = parseCsv($('csv').value);
-  const values = rows[0] || {};
   const res = await fetch('api/preview.php', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ background: state.bg.file, fields: state.fields, values }),
+    body: JSON.stringify({ background: state.bg.file, fields: state.fields, values: rows[0] || {} }),
   });
   const data = await res.json();
   if (!data.ok) { alert('Render failed: ' + data.error); return; }
@@ -239,9 +307,28 @@ async function serverPreview() {
   $('serverPreview').hidden = false;
 }
 
-/* ---------- Send ---------- */
+/* ====================================================================
+   SMTP PROVIDER PRESETS
+==================================================================== */
+const PROVIDERS = {
+  gmail:   { host: 'smtp.gmail.com',      port: 587, secure: 'tls' },
+  outlook: { host: 'smtp.office365.com',  port: 587, secure: 'tls' },
+  yahoo:   { host: 'smtp.mail.yahoo.com', port: 465, secure: 'ssl' },
+  custom:  null,
+};
+function applyProvider() {
+  const key = $('smProvider').value;
+  const p = PROVIDERS[key];
+  if (p) { $('smHost').value = p.host; $('smPort').value = p.port; $('smSecure').value = p.secure; }
+  ['gmail', 'outlook', 'yahoo', 'custom'].forEach((g) => {
+    $('guide' + g[0].toUpperCase() + g.slice(1)).hidden = (g !== key);
+  });
+}
+
+/* ====================================================================
+   SEND
+==================================================================== */
 async function send() {
-  if (!state.bg) return;
   const { rows, headers } = parseCsv($('csv').value);
   if (!rows.length) { alert('Add at least one recipient.'); return; }
   if (!headers.includes('email')) { alert('Your CSV needs an “email” column.'); return; }
@@ -260,19 +347,16 @@ async function send() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Sending ' + rows.length + ' certificate(s)…';
 
-  const payload = {
-    background: state.bg.file, fields: state.fields, participants: rows, smtp,
-    email: { subject: $('mailSubject').value, html: $('mailHtml').value },
-    pdfName: $('pdfName').value,
-  };
-
   try {
     const res = await fetch('api/send.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        background: state.bg.file, fields: state.fields, participants: rows, smtp,
+        email: { subject: $('mailSubject').value, html: $('mailHtml').value },
+        pdfName: $('pdfName').value,
+      }),
     });
-    const data = await res.json();
-    showResult(data);
+    showResult(await res.json());
   } catch (e) {
     showResult({ ok: false, error: e.message });
   } finally {
@@ -286,40 +370,21 @@ function showResult(data) {
   box.hidden = false;
   if (!data.ok && data.error) {
     box.innerHTML = '<span class="err">Error: ' + escapeHtml(data.error) + '</span>';
-    return;
+    box.scrollIntoView({ behavior: 'smooth' }); return;
   }
   let html = '<div><b class="ok">' + data.sent + '</b> of ' + data.total + ' sent.</div><table>';
   (data.results || []).forEach((r) => {
     html += '<tr><td>' + escapeHtml(r.email) + '</td><td>' +
       (r.ok ? '<span class="ok">✓ sent</span>'
-            : '<span class="err">✗ ' + escapeHtml(r.error || '') + '</span>') +
-      '</td></tr>';
+            : '<span class="err">✗ ' + escapeHtml(r.error || '') + '</span>') + '</td></tr>';
   });
-  html += '</table>';
-  box.innerHTML = html;
+  box.innerHTML = html + '</table>';
+  box.scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ---------- SMTP provider presets ---------- */
-const PROVIDERS = {
-  gmail:   { host: 'smtp.gmail.com',      port: 587, secure: 'tls' },
-  outlook: { host: 'smtp.office365.com',  port: 587, secure: 'tls' },
-  yahoo:   { host: 'smtp.mail.yahoo.com', port: 465, secure: 'ssl' },
-  custom:  null,
-};
-function applyProvider() {
-  const key = $('smProvider').value;
-  const p = PROVIDERS[key];
-  if (p) {
-    $('smHost').value = p.host;
-    $('smPort').value = p.port;
-    $('smSecure').value = p.secure;
-  }
-  ['Gmail', 'Outlook', 'Yahoo', 'Custom'].forEach((g) => {
-    $('guide' + g).hidden = (g.toLowerCase() !== key);
-  });
-}
-
-/* ---------- Utils ---------- */
+/* ====================================================================
+   UTILS + INIT
+==================================================================== */
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -340,28 +405,42 @@ const DEFAULT_EMAIL_HTML =
   </div>
 </div>`;
 
-/* ---------- Init ---------- */
 function init() {
   const sel = $('fFont');
   (window.GOOGLE_FONTS || []).forEach((f) => {
     const o = document.createElement('option');
-    o.value = f; o.textContent = f;
-    sel.appendChild(o);
+    o.value = f; o.textContent = f; sel.appendChild(o);
   });
   $('mailHtml').value = DEFAULT_EMAIL_HTML;
 
-  $('bgInput').addEventListener('change', (e) => {
-    if (e.target.files[0]) uploadBg(e.target.files[0]);
-  });
-  $('smProvider').addEventListener('change', applyProvider);
+  // Step navigation
+  document.querySelectorAll('[data-go]').forEach((b) =>
+    b.addEventListener('click', () => goStep(Number(b.dataset.go))));
+  $('toStep2').addEventListener('click', () => goStep(2));
+  $('toStep3').addEventListener('click', () => goStep(3));
+
+  // Dropzone + upload
+  const dz = $('dropzone'), input = $('bgInput');
+  dz.addEventListener('click', () => input.click());
+  $('changeBgBtn').addEventListener('click', () => input.click());
+  input.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+  // Designer
   $('addFieldBtn').addEventListener('click', addField);
   $('serverPreviewBtn').addEventListener('click', serverPreview);
   $('closeSP').addEventListener('click', () => { $('serverPreview').hidden = true; });
-  $('csv').addEventListener('input', refreshCsvStatus);
-  $('sendBtn').addEventListener('click', send);
-
   bindEditor();
   renderFieldList();
-  refreshCsvStatus();
+
+  // Recipients
+  $('csv').addEventListener('input', refreshCsv);
+  refreshCsv();
+
+  // Email & send
+  $('smProvider').addEventListener('change', applyProvider);
+  $('sendBtn').addEventListener('click', send);
 }
 init();
