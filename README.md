@@ -62,6 +62,40 @@ Then open **http://localhost:8000** in your browser.
 
 ---
 
+## 💾 Saving your sender credentials (optional `.env`)
+
+So you don't retype the sender every time, create a **`.env`** file in the
+project root. Two formats work:
+
+```ini
+# KEY=VALUE
+SMTP_USER=you@gmail.com
+SMTP_PASS=abcd efgh ijkl mnop
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=tls
+SMTP_FROM_NAME=Acme Academy
+```
+
+…or the short positional form — **email on line 1, app password on line 2**:
+
+```
+you@gmail.com
+abcd efgh ijkl mnop
+```
+
+On load, the app pre-fills the SMTP form with everything **except** the
+password, and shows *"saved — leave blank to use it"*. The password stays on
+the server and is only used at send time. `.env` is **git-ignored** — it is
+never committed. On Render, set the same `SMTP_*` keys as environment
+variables instead of committing a file.
+
+> ⚠️ Anyone who can reach `/api/config.php` can see the configured sender
+> **email** (never the password). Keep public deployments to senders you're
+> comfortable revealing, or remove `api/config.php` if you don't want pre-fill.
+
+---
+
 ## 🔑 How to generate an App Password
 
 An **app password** is a one-off password your email provider issues for a single

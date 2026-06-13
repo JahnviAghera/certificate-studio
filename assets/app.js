@@ -339,8 +339,8 @@ async function send() {
     password: $('smPass').value, from_email: $('smUser').value.trim(),
     from_name: $('smFromName').value.trim(),
   };
-  if (!smtp.host || !smtp.username || !smtp.password) {
-    alert('Fill in the SMTP host, username and app password.'); return;
+  if (!smtp.host || !smtp.username || (!smtp.password && !state.hasServerPassword)) {
+    alert('Fill in the SMTP host, sender email and app password.'); return;
   }
 
   const btn = $('sendBtn');
@@ -442,5 +442,25 @@ function init() {
   // Email & send
   $('smProvider').addEventListener('change', applyProvider);
   $('sendBtn').addEventListener('click', send);
+  loadSmtpDefaults();
+}
+
+/* Pre-fill the SMTP form from server-side .env defaults (password stays server-side). */
+async function loadSmtpDefaults() {
+  try {
+    const res = await fetch('api/config.php');
+    const data = await res.json();
+    if (!data.ok) return;
+    const s = data.smtp || {};
+    if (s.host) $('smHost').value = s.host;
+    if (s.port) $('smPort').value = s.port;
+    if (s.secure) $('smSecure').value = s.secure;
+    if (s.username) $('smUser').value = s.username;
+    if (s.from_name) $('smFromName').value = s.from_name;
+    if (s.hasServerPassword) {
+      state.hasServerPassword = true;
+      $('smPass').placeholder = '•••••••• saved — leave blank to use it';
+    }
+  } catch {}
 }
 init();

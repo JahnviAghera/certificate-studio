@@ -41,7 +41,7 @@ class Mailer
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         }
 
-        $fromEmail = $this->smtp['from_email'] ?: $this->smtp['username'];
+        $fromEmail = !empty($this->smtp['from_email']) ? $this->smtp['from_email'] : $this->smtp['username'];
         $mail->setFrom($fromEmail, $this->smtp['from_name'] ?? '');
         $mail->addAddress($toEmail, $toName);
 

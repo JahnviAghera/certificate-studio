@@ -14,6 +14,18 @@ foreach ([UPLOAD_DIR, FONT_DIR, OUTPUT_DIR] as $d) {
 require_once __DIR__ . '/GoogleFont.php';
 require_once __DIR__ . '/CertRenderer.php';
 require_once __DIR__ . '/Mailer.php';
+require_once __DIR__ . '/Config.php';
+
+define('ENV_PATH', BASE_DIR . '/.env');
+
+function app_config(): Config
+{
+    static $cfg = null;
+    if ($cfg === null) {
+        $cfg = new Config(ENV_PATH);
+    }
+    return $cfg;
+}
 
 function json_out($data, int $code = 200): void
 {

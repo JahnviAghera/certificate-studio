@@ -20,12 +20,32 @@ $smtp         = $body['smtp'] ?? [];
 $email        = $body['email'] ?? [];
 $pdfNameTpl   = $body['pdfName'] ?? 'Certificate - {{name}}';
 
+// Fall back to server-side .env credentials for any field left blank in the form.
+$cfg = app_config();
+$defaults = [
+    'host'     => $cfg->get('SMTP_HOST'),
+    'port'     => $cfg->get('SMTP_PORT'),
+    'secure'   => $cfg->get('SMTP_SECURE'),
+    'username' => $cfg->get('SMTP_USER'),
+    'password' => $cfg->get('SMTP_PASS'),
+    'from_name' => $cfg->get('SMTP_FROM_NAME'),
+];
+foreach ($defaults as $k => $v) {
+    if (empty($smtp[$k]) && $v !== '') {
+        $smtp[$k] = $v;
+    }
+}
+if (empty($smtp['from_email'])) {
+    $smtp['from_email'] = $smtp['username'] ?? '';
+}
+
 if (empty($participants)) {
     fail('No participants provided.');
 }
+$labels = ['host' => 'SMTP host', 'username' => 'sender email', 'password' => 'app password'];
 foreach (['host', 'port', 'username', 'password'] as $k) {
     if (empty($smtp[$k])) {
-        fail("Missing SMTP setting: {$k}");
+        fail('Missing ' . ($labels[$k] ?? $k) . '. Enter it in the form or add it to your .env file.');
     }
 }
 $subjectTpl = $email['subject'] ?? 'Your Certificate';
