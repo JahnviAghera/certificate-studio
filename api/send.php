@@ -19,35 +19,54 @@ $participants = $body['participants'] ?? [];
 $smtp         = $body['smtp'] ?? [];
 $email        = $body['email'] ?? [];
 $pdfNameTpl   = $body['pdfName'] ?? 'Certificate - {{name}}';
-
-// Fall back to server-side .env credentials for any field left blank in the form.
-$cfg = app_config();
-$defaults = [
-    'host'     => $cfg->get('SMTP_HOST'),
-    'port'     => $cfg->get('SMTP_PORT'),
-    'secure'   => $cfg->get('SMTP_SECURE'),
-    'username' => $cfg->get('SMTP_USER'),
-    'password' => $cfg->get('SMTP_PASS'),
-    'from_name' => $cfg->get('SMTP_FROM_NAME'),
-];
-foreach ($defaults as $k => $v) {
-    if (empty($smtp[$k]) && $v !== '') {
-        $smtp[$k] = $v;
-    }
-}
-if (empty($smtp['from_email'])) {
-    $smtp['from_email'] = $smtp['username'] ?? '';
-}
+$method       = ($body['method'] ?? '') === 'sendgrid' ? 'sendgrid' : 'smtp';
 
 if (empty($participants)) {
     fail('No participants provided.');
 }
-$labels = ['host' => 'SMTP host', 'username' => 'sender email', 'password' => 'app password'];
-foreach (['host', 'port', 'username', 'password'] as $k) {
-    if (empty($smtp[$k])) {
-        fail('Missing ' . ($labels[$k] ?? $k) . '. Enter it in the form or add it to your .env file.');
+
+$cfg = app_config();
+
+// Build the mailer for the chosen delivery method, filling blanks from .env.
+if ($method === 'sendgrid') {
+    $sg = $body['sendgrid'] ?? [];
+    $apiKey   = !empty($sg['key'])  ? $sg['key']  : $cfg->get('SENDGRID_API_KEY');
+    $from     = !empty($sg['from']) ? $sg['from'] : $cfg->get('SENDGRID_FROM');
+    $fromName = $sg['from_name'] ?? $cfg->get('SENDGRID_FROM_NAME');
+    if (empty($apiKey)) {
+        fail('Missing SendGrid API key. Enter it in the form or set SENDGRID_API_KEY in .env.');
     }
+    if (empty($from) || !filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        fail('Missing or invalid SendGrid "From" email (must be a verified sender).');
+    }
+    $mailer = new SendGridMailer($apiKey, $from, $fromName);
+} else {
+    // Fall back to server-side .env credentials for any field left blank.
+    $defaults = [
+        'host'     => $cfg->get('SMTP_HOST'),
+        'port'     => $cfg->get('SMTP_PORT'),
+        'secure'   => $cfg->get('SMTP_SECURE'),
+        'username' => $cfg->get('SMTP_USER'),
+        'password' => $cfg->get('SMTP_PASS'),
+        'from_name' => $cfg->get('SMTP_FROM_NAME'),
+    ];
+    foreach ($defaults as $k => $v) {
+        if (empty($smtp[$k]) && $v !== '') {
+            $smtp[$k] = $v;
+        }
+    }
+    if (empty($smtp['from_email'])) {
+        $smtp['from_email'] = $smtp['username'] ?? '';
+    }
+    $labels = ['host' => 'SMTP host', 'username' => 'sender email', 'password' => 'app password'];
+    foreach (['host', 'port', 'username', 'password'] as $k) {
+        if (empty($smtp[$k])) {
+            fail('Missing ' . ($labels[$k] ?? $k) . '. Enter it in the form or add it to your .env file.');
+        }
+    }
+    $mailer = new Mailer($smtp);
 }
+
 $subjectTpl = $email['subject'] ?? 'Your Certificate';
 $htmlTpl    = $email['html'] ?? '<p>Hi {{name}}, please find your certificate attached.</p>';
 
@@ -58,7 +77,6 @@ $fillTpl = function (string $tpl, array $vals): string {
 };
 
 $renderer = new CertRenderer(new GoogleFont(FONT_DIR));
-$mailer   = new Mailer($smtp);
 
 // One folder per send so the generated PDFs + log can be downloaded afterwards.
 cleanup_old_batches(OUTPUT_DIR);

@@ -67,6 +67,37 @@ Then open **http://localhost:8000** in your browser.
 
 ---
 
+## ✉️ Delivery methods: SMTP vs SendGrid
+
+On **Step 3** you choose how mail goes out:
+
+| Method | Port used | Works on… | Notes |
+|--------|-----------|-----------|-------|
+| **SMTP** (Gmail/Outlook/Yahoo + app password) | 587 / 465 | **Local** machines | Most hosts (incl. **Render**, Heroku, etc.) **block outbound SMTP**, so this fails when deployed with *"Could not connect to SMTP host."* |
+| **SendGrid API** | 443 (HTTPS) | **Local *and* Render** | Recommended for the deployed site. Needs a free SendGrid API key + a verified "From" sender. |
+
+> ⚠️ **Render blocks SMTP ports.** If you deploy and try to send via Gmail SMTP,
+> every recipient will fail to connect. Use **SendGrid** for the live site (or
+> run the app locally for SMTP).
+
+### Using SendGrid
+1. Sign up at <https://signup.sendgrid.com> (free tier ≈ 100 emails/day).
+2. **Verify a sender:** Settings → *Sender Authentication* → *Verify a Single Sender* (or authenticate a domain). Use that address as the **From email**.
+3. **Create a key:** Settings → *API Keys* → *Create API Key* with **Mail Send** permission.
+4. In the app pick **Delivery method → SendGrid API**, paste the `SG.…` key and the verified From email — or configure it server-side (below) and leave the key blank.
+
+Set these as **environment variables on Render** (Dashboard → your service → *Environment*), or in `.env` locally:
+
+```ini
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxx
+SENDGRID_FROM=you@yourdomain.com      # a verified sender
+SENDGRID_FROM_NAME=Acme Academy
+```
+
+When `SENDGRID_API_KEY` is set, the app defaults the delivery method to SendGrid and the key never leaves the server (the form shows *"saved on server — leave blank to use it"*).
+
+---
+
 ## 💾 Saving your sender credentials (optional `.env`)
 
 So you don't retype the sender every time, create a **`.env`** file in the

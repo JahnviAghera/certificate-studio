@@ -38,6 +38,9 @@ class Config
             'SMTP_USER' => '',
             'SMTP_PASS' => '',
             'SMTP_FROM_NAME' => '',
+            'SENDGRID_API_KEY' => '',
+            'SENDGRID_FROM' => '',
+            'SENDGRID_FROM_NAME' => '',
         ];
         if (!is_file($path)) {
             return $out;
@@ -81,9 +84,10 @@ class Config
         return $this->data[$key] ?? $default;
     }
 
-    /** Form-prefill payload — everything EXCEPT the password. */
+    /** Form-prefill payload — everything EXCEPT secrets (passwords / API keys). */
     public function publicDefaults(): array
     {
+        $hasSendgrid = $this->get('SENDGRID_API_KEY') !== '';
         return [
             'host'      => $this->get('SMTP_HOST'),
             'port'      => $this->get('SMTP_PORT'),
@@ -91,6 +95,12 @@ class Config
             'username'  => $this->get('SMTP_USER'),
             'from_name' => $this->get('SMTP_FROM_NAME'),
             'hasServerPassword' => $this->get('SMTP_PASS') !== '',
+            // SendGrid
+            'hasSendgridKey' => $hasSendgrid,
+            'sendgridFrom'   => $this->get('SENDGRID_FROM'),
+            'sendgridFromName' => $this->get('SENDGRID_FROM_NAME'),
+            // Default to whichever is configured (SendGrid wins on Render).
+            'defaultMethod'  => $hasSendgrid ? 'sendgrid' : 'smtp',
         ];
     }
 }

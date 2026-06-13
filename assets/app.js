@@ -333,13 +333,21 @@ async function send() {
   if (!rows.length) { alert('Add at least one recipient.'); return; }
   if (!headers.includes('email')) { alert('Your CSV needs an “email” column.'); return; }
 
+  const method = $('method').value;
   const smtp = {
     host: $('smHost').value.trim(), port: $('smPort').value.trim(),
     secure: $('smSecure').value, username: $('smUser').value.trim(),
     password: $('smPass').value, from_email: $('smUser').value.trim(),
     from_name: $('smFromName').value.trim(),
   };
-  if (!smtp.host || !smtp.username || (!smtp.password && !state.hasServerPassword)) {
+  const sendgrid = {
+    key: $('sgKey').value.trim(), from: $('sgFrom').value.trim(),
+    from_name: $('sgFromName').value.trim(),
+  };
+  if (method === 'sendgrid') {
+    if (!sendgrid.key && !state.hasSendgridKey) { alert('Enter your SendGrid API key (or set it on the server).'); return; }
+    if (!sendgrid.from) { alert('Enter the SendGrid “From” email (a verified sender).'); return; }
+  } else if (!smtp.host || !smtp.username || (!smtp.password && !state.hasServerPassword)) {
     alert('Fill in the SMTP host, sender email and app password.'); return;
   }
 
@@ -351,7 +359,8 @@ async function send() {
     const res = await fetch('api/send.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        background: state.bg.file, fields: state.fields, participants: rows, smtp,
+        background: state.bg.file, fields: state.fields, participants: rows,
+        method, smtp, sendgrid,
         email: { subject: $('mailSubject').value, html: $('mailHtml').value },
         pdfName: $('pdfName').value,
       }),
@@ -465,8 +474,16 @@ function init() {
 
   // Email & send
   $('smProvider').addEventListener('change', applyProvider);
+  $('method').addEventListener('change', applyMethod);
   $('sendBtn').addEventListener('click', send);
   loadSmtpDefaults();
+}
+
+/* Show SMTP or SendGrid fields based on the chosen delivery method. */
+function applyMethod() {
+  const m = $('method').value;
+  $('smtpFields').hidden = (m !== 'smtp');
+  $('sendgridFields').hidden = (m !== 'sendgrid');
 }
 
 /* Pre-fill the SMTP form from server-side .env defaults (password stays server-side). */
@@ -485,6 +502,15 @@ async function loadSmtpDefaults() {
       state.hasServerPassword = true;
       $('smPass').placeholder = '•••••••• saved — leave blank to use it';
     }
+    // SendGrid
+    if (s.sendgridFrom) $('sgFrom').value = s.sendgridFrom;
+    if (s.sendgridFromName) $('sgFromName').value = s.sendgridFromName;
+    if (s.hasSendgridKey) {
+      state.hasSendgridKey = true;
+      $('sgKey').placeholder = '•••••••• saved on server — leave blank to use it';
+    }
+    if (s.defaultMethod) $('method').value = s.defaultMethod;
+    applyMethod();
   } catch {}
 }
 init();

@@ -111,7 +111,38 @@ John Smith,john@example.com,Data Science</textarea>
   <section class="step" data-step="3">
     <div class="cols">
       <div class="card">
-        <h2>Sender (SMTP)</h2>
+        <h2>Sender</h2>
+        <label>Delivery method
+          <select id="method">
+            <option value="smtp">SMTP (email + app password)</option>
+            <option value="sendgrid">SendGrid API — works on Render</option>
+          </select>
+        </label>
+
+        <!-- SendGrid (HTTP API, works where SMTP ports are blocked) -->
+        <div id="sendgridFields" hidden>
+          <label>SendGrid API key
+            <input id="sgKey" type="password" placeholder="SG.xxxxx (or leave blank if set on the server)">
+          </label>
+          <label>From email <span class="dim small">(must be a verified sender)</span>
+            <input id="sgFrom" type="email" placeholder="you@yourdomain.com">
+          </label>
+          <label>From name <input id="sgFromName" placeholder="Acme Academy"></label>
+          <details class="guide">
+            <summary>🔑 How do I get a SendGrid API key?</summary>
+            <div class="guide-body">
+              <ol>
+                <li>Create a free account at <a href="https://signup.sendgrid.com" target="_blank" rel="noopener">sendgrid.com</a>.</li>
+                <li>Verify a sender: <b>Settings → Sender Authentication → Verify a Single Sender</b> (use that email as the <b>From email</b> above), or authenticate a domain.</li>
+                <li>Create a key: <b>Settings → API Keys → Create API Key</b> (Restricted, with <b>Mail Send</b> access).</li>
+                <li>Paste the <code>SG.…</code> key above — or set <code>SENDGRID_API_KEY</code> / <code>SENDGRID_FROM</code> as environment variables on Render and leave the key blank.</li>
+              </ol>
+            </div>
+          </details>
+        </div>
+
+        <!-- SMTP (works locally; blocked on most PaaS like Render) -->
+        <div id="smtpFields">
         <p class="hint">Use an <b>app password</b>, not your login password.</p>
         <label>Email provider
           <select id="smProvider">
@@ -165,6 +196,7 @@ John Smith,john@example.com,Data Science</textarea>
             </div>
           </div>
         </details>
+        </div><!-- /#smtpFields -->
       </div>
 
       <div class="card">
