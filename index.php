@@ -141,14 +141,16 @@ John Smith,john@example.com,Data Science</textarea>
           </details>
         </div>
 
-        <!-- SMTP (works locally; blocked on most PaaS like Render) -->
+        <!-- SMTP (direct provider SMTP is blocked on Render; 2525 relays work) -->
         <div id="smtpFields">
-        <p class="hint">Use an <b>app password</b>, not your login password.</p>
+        <p class="hint">Use an <b>app password</b>, not your login password. <b>On Render</b>, Gmail/Outlook/Yahoo are blocked — pick a <b>2525 relay</b> (Brevo or SendGrid) below.</p>
         <label>Email provider
           <select id="smProvider">
-            <option value="gmail">Gmail / Google Workspace</option>
-            <option value="outlook">Outlook / Microsoft 365</option>
-            <option value="yahoo">Yahoo Mail</option>
+            <option value="gmail">Gmail / Google Workspace (local only)</option>
+            <option value="outlook">Outlook / Microsoft 365 (local only)</option>
+            <option value="yahoo">Yahoo Mail (local only)</option>
+            <option value="brevo">Brevo SMTP relay · port 2525 (works on Render)</option>
+            <option value="sendgridsmtp">SendGrid SMTP relay · port 2525 (works on Render)</option>
             <option value="custom">Other / custom server</option>
           </select>
         </label>
@@ -158,7 +160,7 @@ John Smith,john@example.com,Data Science</textarea>
         </div>
         <div class="grid2">
           <label>Security
-            <select id="smSecure"><option value="tls">STARTTLS (587)</option><option value="ssl">SSL (465)</option></select>
+            <select id="smSecure"><option value="tls">STARTTLS (587 / 2525)</option><option value="ssl">SSL (465)</option></select>
           </label>
           <label>From name <input id="smFromName" placeholder="Acme Academy"></label>
         </div>
@@ -191,8 +193,25 @@ John Smith,john@example.com,Data Science</textarea>
                 <li>Paste it above. Username = your full Yahoo address (Security = SSL / 465).</li>
               </ol>
             </div>
+            <div id="guideBrevo" class="guide-steps" hidden>
+              <p><b>Brevo SMTP relay — works on Render</b> (port 2525 isn't blocked).</p>
+              <ol>
+                <li>Free account at <a href="https://www.brevo.com" target="_blank" rel="noopener">brevo.com</a>.</li>
+                <li>Open <b>SMTP &amp; API → SMTP</b>. Your <b>login</b> is the "Login" shown there (your account email); the <b>password</b> is the <b>SMTP key (master password)</b> on that page.</li>
+                <li>Put the login in <b>Username / email</b> and the SMTP key in <b>App password</b>. Host/port are pre-filled (smtp-relay.brevo.com : 2525).</li>
+                <li>Set the <b>From name</b>; verify your sender address in Brevo under <b>Senders</b>.</li>
+              </ol>
+            </div>
+            <div id="guideSendgridsmtp" class="guide-steps" hidden>
+              <p><b>SendGrid SMTP relay — works on Render</b> (port 2525 isn't blocked).</p>
+              <ol>
+                <li>Create a SendGrid <b>API key</b> with <b>Mail Send</b> access and verify a sender (see the SendGrid API guide).</li>
+                <li>Username is the literal word <code>apikey</code>; password is your <code>SG.…</code> key.</li>
+                <li>Host/port are pre-filled (smtp.sendgrid.net : 2525).</li>
+              </ol>
+            </div>
             <div id="guideCustom" class="guide-steps" hidden>
-              <p>Use the host, port and security your mail provider documents for SMTP. Common ports: <b>587 = STARTTLS</b>, <b>465 = SSL</b>.</p>
+              <p>Use the host, port and security your mail provider documents for SMTP. Common ports: <b>587 = STARTTLS</b>, <b>465 = SSL</b>, <b>2525 = STARTTLS</b> (use 2525 on hosts that block 587).</p>
             </div>
           </div>
         </details>

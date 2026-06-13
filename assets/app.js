@@ -311,16 +311,20 @@ async function serverPreview() {
    SMTP PROVIDER PRESETS
 ==================================================================== */
 const PROVIDERS = {
-  gmail:   { host: 'smtp.gmail.com',      port: 587, secure: 'tls' },
-  outlook: { host: 'smtp.office365.com',  port: 587, secure: 'tls' },
-  yahoo:   { host: 'smtp.mail.yahoo.com', port: 465, secure: 'ssl' },
-  custom:  null,
+  gmail:        { host: 'smtp.gmail.com',        port: 587,  secure: 'tls' },
+  outlook:      { host: 'smtp.office365.com',    port: 587,  secure: 'tls' },
+  yahoo:        { host: 'smtp.mail.yahoo.com',   port: 465,  secure: 'ssl' },
+  brevo:        { host: 'smtp-relay.brevo.com',  port: 2525, secure: 'tls' },
+  sendgridsmtp: { host: 'smtp.sendgrid.net',     port: 2525, secure: 'tls' },
+  custom:       null,
 };
 function applyProvider() {
   const key = $('smProvider').value;
   const p = PROVIDERS[key];
   if (p) { $('smHost').value = p.host; $('smPort').value = p.port; $('smSecure').value = p.secure; }
-  ['gmail', 'outlook', 'yahoo', 'custom'].forEach((g) => {
+  // SendGrid relay uses the literal username "apikey".
+  if (key === 'sendgridsmtp' && $('smUser').value.trim() === '') $('smUser').value = 'apikey';
+  ['gmail', 'outlook', 'yahoo', 'brevo', 'sendgridsmtp', 'custom'].forEach((g) => {
     $('guide' + g[0].toUpperCase() + g.slice(1)).hidden = (g !== key);
   });
 }
