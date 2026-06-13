@@ -1,5 +1,9 @@
 <?php
 /** Shared paths + small helpers. */
+// Deprecation notices (e.g. PHP 8.5 changes) must never leak into JSON/binary
+// responses and break the headers. Real warnings/errors still show.
+error_reporting(E_ALL & ~E_DEPRECATED);
+
 define('BASE_DIR', dirname(__DIR__));
 define('UPLOAD_DIR', BASE_DIR . '/uploads');
 define('FONT_DIR',   BASE_DIR . '/fonts');
@@ -38,6 +42,19 @@ function json_out($data, int $code = 200): void
 function fail(string $msg, int $code = 400): void
 {
     json_out(['ok' => false, 'error' => $msg], $code);
+}
+
+/** Remove send batches older than $maxAgeHours so output/ doesn't grow forever. */
+function cleanup_old_batches(string $outputDir, int $maxAgeHours = 24): void
+{
+    foreach (glob($outputDir . '/batch_*') ?: [] as $dir) {
+        if (is_dir($dir) && (time() - filemtime($dir)) > $maxAgeHours * 3600) {
+            foreach (glob($dir . '/*') ?: [] as $f) {
+                @unlink($f);
+            }
+            @rmdir($dir);
+        }
+    }
 }
 
 /** A curated list of popular Google Fonts shown in the designer dropdown. */

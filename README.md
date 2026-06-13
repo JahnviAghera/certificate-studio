@@ -58,7 +58,12 @@ Then open **http://localhost:8000** in your browser.
    ```
 5. **Sender (SMTP)** — enter your SMTP host/port, username and **app password**, and a "from" name.
 6. **Email** — set the subject, PDF file name, and edit the HTML body (placeholders like `{{name}}` work here too).
-7. **Generate & send** — each recipient gets a personalised PDF attached to your HTML email. A per-recipient success/error report appears below the button.
+7. **Generate & send** — a certificate PDF is generated for **every** recipient (even ones whose email fails), then emailed. Afterwards you get:
+   - a **complete log** table (name, email, sent / not-sent, error detail);
+   - **⬇ Sent PDFs**, **⬇ Not-sent PDFs**, **⬇ All PDFs** (zip downloads);
+   - **⬇ Log (CSV)** — the full report as a spreadsheet.
+
+   Each send is stored in its own `output/batch_<id>/` folder and auto-purged after 24 hours.
 
 ---
 

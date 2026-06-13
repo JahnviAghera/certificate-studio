@@ -3,9 +3,9 @@ FROM php:8.3-cli
 
 # GD with FreeType/JPEG/WEBP so imagettftext() can draw text on backgrounds.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libfreetype6-dev libjpeg62-turbo-dev libpng-dev libwebp-dev \
+        libfreetype6-dev libjpeg62-turbo-dev libpng-dev libwebp-dev libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j"$(nproc)" gd \
+    && docker-php-ext-install -j"$(nproc)" gd zip \
     && rm -rf /var/lib/apt/lists/*
 # (ext-curl, openssl and mbstring are already bundled in the official image.)
 

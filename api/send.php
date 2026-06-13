@@ -60,32 +60,73 @@ $fillTpl = function (string $tpl, array $vals): string {
 $renderer = new CertRenderer(new GoogleFont(FONT_DIR));
 $mailer   = new Mailer($smtp);
 
+// One folder per send so the generated PDFs + log can be downloaded afterwards.
+cleanup_old_batches(OUTPUT_DIR);
+$batchId  = date('Ymd-His') . '-' . bin2hex(random_bytes(3));
+$batchDir = OUTPUT_DIR . '/batch_' . $batchId;
+@mkdir($batchDir, 0775, true);
+
+$usedNames = [];
 $results = [];
 $sent = 0;
 foreach ($participants as $i => $p) {
-    $to = trim($p['email'] ?? '');
-    $row = ['row' => $i + 1, 'email' => $to];
+    $to   = trim($p['email'] ?? '');
+    $name = trim($p['name'] ?? '');
+    $row  = ['row' => $i + 1, 'name' => $name, 'email' => $to, 'pdf' => null, 'status' => 'failed', 'error' => ''];
+
+    // Build a unique, safe PDF filename from the template.
+    $base = preg_replace('/[^\w .-]/', '_', $fillTpl($pdfNameTpl, $p));
+    $base = trim($base) !== '' ? $base : ('certificate_' . ($i + 1));
+    $pdfFile = $base . '.pdf';
+    $n = 2;
+    while (isset($usedNames[strtolower($pdfFile)])) {
+        $pdfFile = $base . " ({$n}).pdf";
+        $n++;
+    }
+    $usedNames[strtolower($pdfFile)] = true;
+    $pdfPath = $batchDir . '/' . $pdfFile;
+
+    // 1) Always try to render the certificate (so "not sent" ones stay downloadable).
+    try {
+        $renderer->renderPdf($bgPath, $fields, $p, $pdfPath);
+        $row['pdf'] = $pdfFile;
+    } catch (Throwable $e) {
+        $row['error'] = 'Render failed: ' . $e->getMessage();
+        $results[] = $row;
+        continue;
+    }
+
+    // 2) Then try to email it.
     if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        $results[] = $row + ['ok' => false, 'error' => 'Invalid email address.'];
+        $row['error'] = 'Invalid or missing email address.';
+        $results[] = $row;
         continue;
     }
     try {
-        $pdfFile = OUTPUT_DIR . '/cert_' . bin2hex(random_bytes(6)) . '.pdf';
-        $renderer->renderPdf($bgPath, $fields, $p, $pdfFile);
-
-        $attachName = preg_replace('/[^\w .-]/', '_', $fillTpl($pdfNameTpl, $p)) . '.pdf';
-        $subject = $fillTpl($subjectTpl, $p);
-        $html    = $fillTpl($htmlTpl, $p);
-        $name    = $p['name'] ?? '';
-
-        $mailer->send($to, $name, $subject, $html, $pdfFile, $attachName);
-        @unlink($pdfFile);
-
+        $mailer->send($to, $name, $fillTpl($subjectTpl, $p), $fillTpl($htmlTpl, $p), $pdfPath, $pdfFile);
+        $row['status'] = 'sent';
         $sent++;
-        $results[] = $row + ['ok' => true];
     } catch (Throwable $e) {
-        $results[] = $row + ['ok' => false, 'error' => $e->getMessage()];
+        $row['error'] = $e->getMessage();
     }
+    $results[] = $row;
 }
 
-json_out(['ok' => true, 'sent' => $sent, 'total' => count($participants), 'results' => $results]);
+// Write a complete CSV log into the batch folder.
+$logPath = $batchDir . '/log.csv';
+$fh = fopen($logPath, 'w');
+fputcsv($fh, ['row', 'name', 'email', 'status', 'error', 'pdf_file', 'timestamp'], ',', '"', '');
+$ts = date('c');
+foreach ($results as $r) {
+    fputcsv($fh, [$r['row'], $r['name'], $r['email'], $r['status'], $r['error'], $r['pdf'] ?? '', $ts], ',', '"', '');
+}
+fclose($fh);
+
+json_out([
+    'ok'      => true,
+    'batch'   => $batchId,
+    'sent'    => $sent,
+    'failed'  => count($results) - $sent,
+    'total'   => count($participants),
+    'results' => $results,
+]);

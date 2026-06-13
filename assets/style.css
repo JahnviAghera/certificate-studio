@@ -161,8 +161,13 @@ textarea { resize: vertical; font-family: ui-monospace, Menlo, monospace; line-h
 }
 .result .ok { color: var(--accent2); }
 .result .err { color: var(--danger); }
-.result table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.result td { padding: 6px 8px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.result-summary { font-size: 14px; font-weight: 600; }
+.dl-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+.dl-bar .btn { text-decoration: none; }
+.result table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.result th, .result td { padding: 7px 9px; border-bottom: 1px solid var(--line); font-size: 12.5px; text-align: left; vertical-align: top; }
+.result th { color: var(--dim); font-weight: 600; background: var(--card2); }
+.log-table td:nth-child(5) { max-width: 320px; word-break: break-word; }
 
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ffffff55; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

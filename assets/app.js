@@ -372,11 +372,35 @@ function showResult(data) {
     box.innerHTML = '<span class="err">Error: ' + escapeHtml(data.error) + '</span>';
     box.scrollIntoView({ behavior: 'smooth' }); return;
   }
-  let html = '<div><b class="ok">' + data.sent + '</b> of ' + data.total + ' sent.</div><table>';
+
+  const sent = data.sent || 0;
+  const failed = data.failed || 0;
+  const dl = (type) => 'api/download.php?batch=' + encodeURIComponent(data.batch) + '&type=' + type;
+
+  let html = '<div class="result-summary">' +
+    '<span class="ok">✓ ' + sent + ' sent</span>' +
+    (failed ? ' · <span class="err">✗ ' + failed + ' not sent</span>' : '') +
+    ' · <span class="dim">' + data.total + ' total</span></div>';
+
+  // Download bar
+  html += '<div class="dl-bar">';
+  if (sent)   html += '<a class="btn sm" href="' + dl('sent') + '">⬇ Sent PDFs (' + sent + ')</a>';
+  if (failed) html += '<a class="btn sm" href="' + dl('failed') + '">⬇ Not-sent PDFs (' + failed + ')</a>';
+  html += '<a class="btn sm" href="' + dl('all') + '">⬇ All PDFs</a>';
+  html += '<a class="btn sm" href="' + dl('log') + '">⬇ Log (CSV)</a>';
+  html += '</div>';
+
+  // Complete log
+  html += '<table class="log-table"><tr><th>#</th><th>Name</th><th>Email</th><th>Status</th><th>Detail</th></tr>';
   (data.results || []).forEach((r) => {
-    html += '<tr><td>' + escapeHtml(r.email) + '</td><td>' +
-      (r.ok ? '<span class="ok">✓ sent</span>'
-            : '<span class="err">✗ ' + escapeHtml(r.error || '') + '</span>') + '</td></tr>';
+    const sentRow = r.status === 'sent';
+    html += '<tr>' +
+      '<td>' + r.row + '</td>' +
+      '<td>' + escapeHtml(r.name || '') + '</td>' +
+      '<td>' + escapeHtml(r.email || '') + '</td>' +
+      '<td>' + (sentRow ? '<span class="ok">✓ sent</span>' : '<span class="err">✗ not sent</span>') + '</td>' +
+      '<td class="dim">' + escapeHtml(r.error || (sentRow ? '' : '')) + (r.pdf ? '' : ' <i>(no PDF)</i>') + '</td>' +
+    '</tr>';
   });
   box.innerHTML = html + '</table>';
   box.scrollIntoView({ behavior: 'smooth' });
