@@ -56,10 +56,78 @@ Then open **http://localhost:8000** in your browser.
 6. **Email** — set the subject, PDF file name, and edit the HTML body (placeholders like `{{name}}` work here too).
 7. **Generate & send** — each recipient gets a personalised PDF attached to your HTML email. A per-recipient success/error report appears below the button.
 
-### Gmail quick setup
-- Host: `smtp.gmail.com`, Port: `587`, Security: `STARTTLS`.
-- Username: your full Gmail address.
-- Password: a **16-character App Password** from <https://myaccount.google.com/apppasswords> (requires 2-Step Verification). Your normal password will **not** work.
+---
+
+## 🔑 How to generate an App Password
+
+An **app password** is a one-off password your email provider issues for a single
+program. It lets this app sign in over SMTP **without** your real password and
+without disabling security. You must have **two-factor authentication (2FA)
+turned on** first — that's what unlocks app passwords.
+
+> ⚠️ Use an app password, **never** your normal login password. Providers block
+> "less secure app" logins, so a normal password will simply fail to send.
+> Treat the app password like a password: paste it into the app, don't share it,
+> and revoke it from your account if it leaks.
+
+### Gmail (and Google Workspace)
+
+| Setting   | Value             |
+|-----------|-------------------|
+| Host      | `smtp.gmail.com`  |
+| Port      | `587`             |
+| Security  | STARTTLS          |
+| Username  | your full Gmail address |
+| Password  | the 16-character app password (below) |
+
+1. Turn on 2-Step Verification: <https://myaccount.google.com/signinoptions/two-step-verification> → follow the prompts (you'll need your phone).
+2. Open **App passwords**: <https://myaccount.google.com/apppasswords>
+   *(If the page says it's unavailable, 2-Step Verification isn't fully enabled yet.)*
+3. Type a name like `Certificate Studio` and click **Create**.
+4. Google shows a **16-character code in 4 groups** (e.g. `abcd efgh ijkl mnop`).
+5. Copy it into the app's **App password** field. You can type it with or without
+   the spaces — both work. Use your full Gmail address as the **Username**.
+
+### Outlook / Microsoft 365 (outlook.com, hotmail, live)
+
+| Setting   | Value                  |
+|-----------|------------------------|
+| Host      | `smtp.office365.com`   |
+| Port      | `587`                  |
+| Security  | STARTTLS               |
+
+1. Turn on 2FA: <https://account.microsoft.com/security> → **Advanced security options**.
+2. Under **App passwords**, choose **Create a new app password**.
+3. Copy the generated password into the app. Username = your full Outlook address.
+
+### Yahoo Mail
+
+| Setting   | Value                  |
+|-----------|------------------------|
+| Host      | `smtp.mail.yahoo.com`  |
+| Port      | `465`                  |
+| Security  | SSL                    |
+
+1. Go to **Account Security**: <https://login.yahoo.com/account/security>
+2. Click **Generate app password** (2FA must be on), name it, and copy the code.
+3. Username = your full Yahoo address; choose **SSL (465)** in the app's Security dropdown.
+
+### Other providers / custom mail server
+
+Use the host, port and security your provider documents for SMTP. Common ports:
+**587 = STARTTLS**, **465 = SSL**. If your provider doesn't offer app passwords
+and doesn't enforce 2FA, your normal SMTP password may work — but app passwords
+are strongly preferred.
+
+### Troubleshooting
+
+| Error you see                          | Fix |
+|----------------------------------------|-----|
+| `Username and Password not accepted`   | You used your normal password — generate an **app password** instead. |
+| `App passwords` page unavailable (Gmail) | Finish enabling **2-Step Verification** first. |
+| `Could not authenticate` / `5.7.x`     | Check the address is your full email, and host/port/security match the table above. |
+| Connection times out                   | Wrong port/security combo — try `587` + STARTTLS, or `465` + SSL. Some hosts/networks block outbound SMTP. |
+| Mail sends but lands in Spam           | Add a real **From name**, and ideally send from a domain with SPF/DKIM configured. |
 
 ---
 

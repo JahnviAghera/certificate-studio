@@ -299,6 +299,26 @@ function showResult(data) {
   box.innerHTML = html;
 }
 
+/* ---------- SMTP provider presets ---------- */
+const PROVIDERS = {
+  gmail:   { host: 'smtp.gmail.com',      port: 587, secure: 'tls' },
+  outlook: { host: 'smtp.office365.com',  port: 587, secure: 'tls' },
+  yahoo:   { host: 'smtp.mail.yahoo.com', port: 465, secure: 'ssl' },
+  custom:  null,
+};
+function applyProvider() {
+  const key = $('smProvider').value;
+  const p = PROVIDERS[key];
+  if (p) {
+    $('smHost').value = p.host;
+    $('smPort').value = p.port;
+    $('smSecure').value = p.secure;
+  }
+  ['Gmail', 'Outlook', 'Yahoo', 'Custom'].forEach((g) => {
+    $('guide' + g).hidden = (g.toLowerCase() !== key);
+  });
+}
+
 /* ---------- Utils ---------- */
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) =>
@@ -333,6 +353,7 @@ function init() {
   $('bgInput').addEventListener('change', (e) => {
     if (e.target.files[0]) uploadBg(e.target.files[0]);
   });
+  $('smProvider').addEventListener('change', applyProvider);
   $('addFieldBtn').addEventListener('click', addField);
   $('serverPreviewBtn').addEventListener('click', serverPreview);
   $('closeSP').addEventListener('click', () => { $('serverPreview').hidden = true; });

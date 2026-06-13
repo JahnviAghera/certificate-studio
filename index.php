@@ -94,7 +94,15 @@ John Smith,john@example.com,Data Science</textarea>
     <!-- SMTP -->
     <div class="card">
       <h2>Sender (SMTP)</h2>
-      <p class="hint">Use an <b>app password</b>, not your login password. (Gmail: smtp.gmail.com / 587 / TLS.)</p>
+      <p class="hint">Use an <b>app password</b>, not your login password.</p>
+      <label>Email provider
+        <select id="smProvider">
+          <option value="gmail">Gmail / Google Workspace</option>
+          <option value="outlook">Outlook / Microsoft 365</option>
+          <option value="yahoo">Yahoo Mail</option>
+          <option value="custom">Other / custom server</option>
+        </select>
+      </label>
       <div class="grid2">
         <label>SMTP host <input id="smHost" value="smtp.gmail.com"></label>
         <label>Port <input id="smPort" type="number" value="587"></label>
@@ -107,6 +115,38 @@ John Smith,john@example.com,Data Science</textarea>
       </div>
       <label>Username / email <input id="smUser" type="email" placeholder="you@gmail.com"></label>
       <label>App password <input id="smPass" type="password" placeholder="xxxx xxxx xxxx xxxx"></label>
+
+      <details class="guide">
+        <summary>🔑 How do I get an app password?</summary>
+        <div class="guide-body">
+          <p>An <b>app password</b> is a one-time password your email provider issues for a single app, so you never share your real password. You must turn on <b>two-factor authentication (2FA)</b> first — that's what unlocks app passwords. Your normal login password will <b>not</b> work for SMTP.</p>
+          <div id="guideGmail" class="guide-steps">
+            <ol>
+              <li>Enable <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener">2-Step Verification</a>.</li>
+              <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Google App passwords</a>.</li>
+              <li>Name it <code>Certificate Studio</code> → <b>Create</b>.</li>
+              <li>Copy the <b>16-character code</b> (e.g. <code>abcd efgh ijkl mnop</code>) into the App password field above. Username = your full Gmail address.</li>
+            </ol>
+          </div>
+          <div id="guideOutlook" class="guide-steps" hidden>
+            <ol>
+              <li>Enable 2FA in <a href="https://account.microsoft.com/security" target="_blank" rel="noopener">Microsoft security</a> → <b>Advanced security options</b>.</li>
+              <li>Under <b>App passwords</b>, choose <b>Create a new app password</b>.</li>
+              <li>Copy it into the App password field. Username = your full Outlook address.</li>
+            </ol>
+          </div>
+          <div id="guideYahoo" class="guide-steps" hidden>
+            <ol>
+              <li>Open <a href="https://login.yahoo.com/account/security" target="_blank" rel="noopener">Yahoo Account Security</a> (2FA must be on).</li>
+              <li>Click <b>Generate app password</b>, name it, and copy the code.</li>
+              <li>Paste it above. Username = your full Yahoo address (Security = SSL / 465).</li>
+            </ol>
+          </div>
+          <div id="guideCustom" class="guide-steps" hidden>
+            <p>Use the host, port and security your mail provider documents for SMTP. Common ports: <b>587 = STARTTLS</b>, <b>465 = SSL</b>. Prefer an app password if your provider offers one.</p>
+          </div>
+        </div>
+      </details>
     </div>
 
     <!-- Email body -->
